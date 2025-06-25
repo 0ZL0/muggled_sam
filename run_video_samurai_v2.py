@@ -692,12 +692,24 @@ try:
         ui_elems.masks_constraint.change_to(selected_mask_idx)
 
         highlight_dict = {}
+        best_sam2_idx = None
+        best_samurai_idx = None
         if sam2_scores is not None:
-            best_sam2_idx = int(np.argmax(sam2_scores[1:])) + 1 if len(sam2_scores) > 1 else int(np.argmax(sam2_scores))
-            highlight_dict[best_sam2_idx] = (0, 120, 255)
+            best_sam2_idx = (
+                int(np.argmax(sam2_scores[1:])) + 1
+                if len(sam2_scores) > 1
+                else int(np.argmax(sam2_scores))
+            )
         if samurai_scores is not None:
-            best_samurai_idx = int(np.argmax(samurai_scores))
+            best_samurai_idx = (
+                int(np.argmax(samurai_scores[1:])) + 1
+                if len(samurai_scores) > 1
+                else int(np.argmax(samurai_scores))
+            )
+        if best_samurai_idx is not None:
             highlight_dict[best_samurai_idx] = (0, 255, 0)
+        if best_sam2_idx is not None and best_sam2_idx != best_samurai_idx:
+            highlight_dict[best_sam2_idx] = (0, 120, 255)
 
         uictrl.update_mask_previews_with_highlight(
             selected_mask_preds,
