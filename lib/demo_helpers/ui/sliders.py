@@ -7,6 +7,7 @@
 
 import cv2
 import numpy as np
+from lib.translation import tr
 
 from .base import BaseCallback
 from .helpers.text import TextDrawer
@@ -43,7 +44,8 @@ class HSlider(BaseCallback):
         initial_value = min(max_value, max(min_value, initial_value))
 
         # Storage for slider value
-        self._label = label
+        from lib.translation import tr
+        self._label = tr(label)
         self._initial_value = initial_value
         self._slider_value = initial_value
         self._slider_min = min_value

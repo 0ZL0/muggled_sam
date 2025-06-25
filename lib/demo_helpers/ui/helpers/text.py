@@ -7,6 +7,7 @@
 
 import cv2
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 from typing import TypeAlias
 
@@ -21,6 +22,9 @@ COLOR: TypeAlias = tuple[int, int, int]
 
 # ---------------------------------------------------------------------------------------------------------------------
 # %% Classes
+
+
+DEFAULT_FONT_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
 
 
 class TextDrawer:
@@ -39,11 +43,13 @@ class TextDrawer:
         bg_color: COLOR | None = None,
         font=cv2.FONT_HERSHEY_SIMPLEX,
         line_type=cv2.LINE_AA,
+        font_path: str = DEFAULT_FONT_PATH,
     ):
         self._fg_color = color
         self._fg_thick = thickness
         self._bg_color = bg_color
         self._font = font
+        self._font_path = font_path
         self._scale = scale
         self._ltype = cv2.LINE_AA
 
@@ -84,6 +90,23 @@ class TextDrawer:
             self._bg_color = bg_color if bg_color != -1 else None
         return self
 
+    # .........................................................................
+    def _draw_text_pil(self, image, text: str, xy_px: XYPX, scale: float, color: COLOR, thickness: int):
+        font_size = max(1, int(round(30 * scale)))
+        font = ImageFont.truetype(self._font_path, font_size)
+
+        img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        pil_img = Image.fromarray(img_rgb)
+        draw = ImageDraw.Draw(pil_img)
+        stroke_width = thickness if self._bg_color is None else max(thickness, 1)
+        stroke_fill = None
+        if self._bg_color is not None:
+            stroke_fill = tuple(int(c) for c in self._bg_color[::-1])
+
+        draw.text(xy_px, text, font=font, fill=tuple(int(c) for c in color[::-1]), stroke_width=stroke_width, stroke_fill=stroke_fill)
+        img_bgr = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        return img_bgr
+
     # .................................................................................................................
 
     def xy_px(
@@ -105,11 +128,16 @@ class TextDrawer:
         if thickness is None:
             thickness = self._fg_thick
 
-        if self._bg_color is not None:
-            bg_thick = min(thickness + 3, thickness * 3)
-            image = cv2.putText(image, text, xy_px, self._font, scale, self._bg_color, bg_thick, self._ltype)
+        if any(ord(c) > 127 for c in text):
+            image = self._draw_text_pil(image, text, xy_px, scale, color, thickness)
+        else:
+            if self._bg_color is not None:
+                bg_thick = min(thickness + 3, thickness * 3)
+                image = cv2.putText(image, text, xy_px, self._font, scale, self._bg_color, bg_thick, self._ltype)
 
-        return cv2.putText(image, text, xy_px, self._font, scale, color, thickness, self._ltype)
+            image = cv2.putText(image, text, xy_px, self._font, scale, color, thickness, self._ltype)
+
+        return image
 
     # .................................................................................................................
 
@@ -235,7 +263,16 @@ class TextDrawer:
         if thickness is None:
             thickness = self._fg_thick
 
-        (txt_w, txt_h), txt_base = cv2.getTextSize(text, self._font, scale, thickness)
+        if any(ord(c) > 127 for c in text):
+            font_size = max(1, int(round(30 * scale)))
+            font = ImageFont.truetype(self._font_path, font_size)
+            bbox = font.getbbox(text)
+            txt_w = bbox[2] - bbox[0]
+            txt_h = bbox[3] - bbox[1]
+            txt_base = -bbox[1]
+        else:
+            (txt_w, txt_h), txt_base = cv2.getTextSize(text, self._font, scale, thickness)
+
         return txt_w, txt_h, txt_base
 
     # .................................................................................................................

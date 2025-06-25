@@ -7,6 +7,7 @@
 
 import os.path as osp
 import cv2
+from lib.translation import tr
 
 from lib.demo_helpers.ui.window import DisplayWindow, KEY
 from lib.demo_helpers.ui.sliders import HSlider
@@ -67,8 +68,8 @@ def make_video_frame_select_ui(
     done_btn._rdr.limits.update(min_w=20)
 
     # Message bars for feedback
-    header_bar = StaticMessageBar(title_text)
-    footer_bar = StaticMessageBar("Use slider to select a frame", text_scale=0.35)
+    header_bar = StaticMessageBar(tr(title_text))
+    footer_bar = StaticMessageBar(tr("Use slider to select a frame"), text_scale=0.35)
 
     # Bundle UI elements into single layout
     disp_layout = VStack(
@@ -88,7 +89,7 @@ def run_video_frame_select_ui(
     video_path: str,
     render_height=800,
     initial_frame_index=0,
-    window_title="Select frame - q to close",
+    window_title=tr("Select frame - q to close"),
 ):
 
     # Create video capture or bail if not possible
