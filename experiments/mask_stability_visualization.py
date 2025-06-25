@@ -270,7 +270,7 @@ if have_init_prompts:
 
 # Set up display
 cv2.destroyAllWindows()
-window = DisplayWindow("Display - q to quit", display_fps=60).attach_mouse_callbacks(disp_layout)
+window = DisplayWindow("显示 - 按 q 退出", display_fps=60).attach_mouse_callbacks(disp_layout)
 window.move(200, 50)
 
 # Attach key controls

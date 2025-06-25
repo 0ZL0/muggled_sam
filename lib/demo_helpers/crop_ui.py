@@ -46,16 +46,16 @@ def make_crop_ui(image_bgr: ndarray, fg_line_color=(0, 255, 0), initial_crop_tlb
     crop_olay = EditBoxOverlay(image_bgr.shape, fg_line_color, 2).set_box(initial_crop_tlbr_norm)
 
     # Set up text blocks for feedback
-    xy1_txt = ValueBlock("Crop XY1: ", "(0,0)")
-    crop_wh_txt = ValueBlock("Crop WH: ", "(1,1)")
-    xy2_txt = ValueBlock("Crop XY2: ", "(1,1)")
-    done_btn = ImmediateButton("Done", color=(125, 185, 0))
+    xy1_txt = ValueBlock("裁剪 XY1: ", "(0,0)")
+    crop_wh_txt = ValueBlock("裁剪宽高: ", "(1,1)")
+    xy2_txt = ValueBlock("裁剪 XY2: ", "(1,1)")
+    done_btn = ImmediateButton("完成", color=(125, 185, 0))
 
     # Bundle all the ui elements
     img_h, img_w = image_bgr.shape[0:2]
     crop_ui = VStack(
         StaticMessageBar(
-            f"Original: {img_w} x {img_h} px",
+            f"原图：{img_w} x {img_h} 像素",
         ),
         HStack(
             OverlayStack(main_disp, zoom_olay, crop_olay),
@@ -70,9 +70,9 @@ def make_crop_ui(image_bgr: ndarray, fg_line_color=(0, 255, 0), initial_crop_tlb
         ),
         HStack(xy1_txt, crop_wh_txt, xy2_txt),
         StaticMessageBar(
-            "Click & drag to adjust crop boundaries",
-            "Arrow keys for fine adjustments",
-            "Use ] or [ keys to zoom",
+            "拖动鼠标调整裁剪范围",
+            "方向键微调",
+            "按 ] 或 [ 键缩放",
             text_scale=0.35,
             space_equally=True,
         ),
@@ -95,7 +95,7 @@ def run_crop_ui(
     initial_crop_tlbr_norm=None,
     fg_line_color=(0, 255, 0),
     bg_line_color=(0, 0, 0),
-    window_title="Crop Image - q to close",
+    window_title="裁剪图片 - 按 q 关闭",
 ) -> tuple[tuple[slice, slice], tuple]:
     """
     Helper used to launch a (temporary) UI for cropping an image

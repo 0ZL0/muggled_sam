@@ -265,14 +265,14 @@ tools_group.fgpt.add_on_change_listeners(overlays_a.fgpt.enable, overlays_b.fgpt
 tools_group.bgpt.add_on_change_listeners(overlays_a.bgpt.enable, overlays_b.bgpt.enable)
 
 # Set up slider used to encode multiple frame 'memories'
-video_iter_slider = HSlider("Repeat frame encoding", 0, 0, 12, step_size=1, marker_steps=1)
-threshold_slider = HSlider("Mask threshold", 0.0, -10.0, 10.0, step_size=0.01, marker_steps=100)
+video_iter_slider = HSlider("重复帧编码", 0, 0, 12, step_size=1, marker_steps=1)
+threshold_slider = HSlider("掩码阈值", 0.0, -10.0, 10.0, step_size=0.01, marker_steps=100)
 
 # Set up text-based reporting UI
 has_cuda = torch.cuda.is_available()
-stability_score_txt_a = ValueBlock("Stability A: ")
-objscore_text = ValueBlock("Object Score: ", None, max_characters=3)
-stability_score_txt_b = ValueBlock("Stability B: ")
+stability_score_txt_a = ValueBlock("稳定度A: ")
+objscore_text = ValueBlock("目标得分: ", None, max_characters=3)
+stability_score_txt_b = ValueBlock("稳定度B: ")
 text_scores_bar = HStack(stability_score_txt_a, objscore_text, stability_score_txt_b)
 
 # Decide on images/masks layout
@@ -288,7 +288,7 @@ device_dtype_str = f"{model_device}/{model_dtype}"
 header_msgbar = StaticMessageBar(
     model_name, f"{token_hw_str} tokens", device_dtype_str, text_scale=0.35, space_equally=True
 )
-footer_msg_bar = StaticMessageBar("[w/s] Change mask A", "[e/d] Change mask B", text_scale=0.35, space_equally=True)
+footer_msg_bar = StaticMessageBar("[w/s] 切换掩码A", "[e/d] 切换掩码B", text_scale=0.35, space_equally=True)
 disp_layout = VStack(
     header_msgbar if show_info else None,
     tools_bar,
@@ -315,7 +315,7 @@ if have_init_prompts:
 
 # Set up display
 cv2.destroyAllWindows()
-window = DisplayWindow("Display - q to quit", display_fps=60)
+window = DisplayWindow("显示 - 按 q 退出", display_fps=60)
 window.attach_mouse_callbacks(disp_layout)
 window.move(200, 50)
 
@@ -345,11 +345,11 @@ stability_offset = 2
 # Some feedback
 print(
     "",
-    "Use prompts on one image to segment the other!",
-    "- Shift-click to add multiple points",
-    "- Right-click to remove points",
-    "- Press -/+ keys to change display sizing",
-    "- Press q or esc to close the window",
+    "在一幅图像上使用提示来分割另一幅图像!",
+    "- 按住 Shift 点击可添加多个点",
+    "- 右键点击以移除点",
+    "- 按 -/+ 键调整显示大小",
+    "- 按 q 或 esc 关闭窗口",
     "",
     sep="\n",
     flush=True,

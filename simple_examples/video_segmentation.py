@@ -100,7 +100,7 @@ try:
 
         # Show frame and mask
         sidebyside = stack_func((frame, disp_mask))
-        cv2.imshow("Video Segmentation Result - q to quit", cv2.resize(sidebyside, dsize=None, fx=0.5, fy=0.5))
+        cv2.imshow("视频分割结果 - 按 q 退出", cv2.resize(sidebyside, dsize=None, fx=0.5, fy=0.5))
         keypress = cv2.waitKey(1) & 0xFF
         if keypress in close_keycodes:
             break

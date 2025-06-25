@@ -320,50 +320,50 @@ unselected_olay = DrawPolygonsOverlay((50, 5, 130), (25, 0, 60))
 ui_elems.overlay_img.add_overlays(unselected_olay)
 
 # Set up text-based reporting UI
-vram_text = ValueBlock("VRAM: ", "-", "MB", max_characters=5)
-objscore_text = ValueBlock("Score: ", None, max_characters=3)
-num_prompts_text = ValueBlock("Prompts: ", "0", max_characters=2)
-num_history_text = ValueBlock("History: ", "0", max_characters=2)
+vram_text = ValueBlock("显存: ", "-", "MB", max_characters=5)
+objscore_text = ValueBlock("得分: ", None, max_characters=3)
+num_prompts_text = ValueBlock("提示: ", "0", max_characters=2)
+num_history_text = ValueBlock("历史: ", "0", max_characters=2)
 force_same_min_width(vram_text, objscore_text)
 
 # Set up button controls
-show_preview_btn = ToggleButton("Preview", default_state=False)
-invert_mask_btn = ToggleButton("Invert", default_state=False)
-track_btn = ToggleButton("Track", on_color=(30, 140, 30))
-reversal_btn = ToggleButton("Reverse", default_state=False, text_scale=0.35)
-store_prompt_btn = ImmediateButton("Store Prompt", text_scale=0.35, color=(145, 160, 40))
-clear_prompts_btn = ImmediateButton("Clear Prompts", text_scale=0.35, color=(80, 110, 230))
-enable_history_btn = ToggleButton("Enable History", default_state=True, text_scale=0.35, on_color=(90, 85, 115))
-clear_history_btn = ImmediateButton("Clear History", text_scale=0.35, color=(130, 60, 90))
+show_preview_btn = ToggleButton("预览", default_state=False)
+invert_mask_btn = ToggleButton("反转", default_state=False)
+track_btn = ToggleButton("跟踪", on_color=(30, 140, 30))
+reversal_btn = ToggleButton("反向", default_state=False, text_scale=0.35)
+store_prompt_btn = ImmediateButton("存储提示", text_scale=0.35, color=(145, 160, 40))
+clear_prompts_btn = ImmediateButton("清空提示", text_scale=0.35, color=(80, 110, 230))
+enable_history_btn = ToggleButton("启用历史", default_state=True, text_scale=0.35, on_color=(90, 85, 115))
+clear_history_btn = ImmediateButton("清空历史", text_scale=0.35, color=(130, 60, 90))
 force_same_min_width(store_prompt_btn, clear_prompts_btn, enable_history_btn, clear_history_btn)
 
 
 # Create save UI
-enable_record_btn = ToggleButton("Enable Recording", default_state=False, on_color=(0, 15, 255), button_height=60)
+enable_record_btn = ToggleButton("启用录制", default_state=False, on_color=(0, 15, 255), button_height=60)
 buffer_btns_list = []
 buffer_text_list = []
 buffer_elems = []
 for objidx in range(num_obj_buffers):
-    buffer_btn = ToggleButton(f"Buffer {1+objidx}", button_height=20, text_scale=0.5, on_color=(145, 120, 65))
+    buffer_btn = ToggleButton(f"缓存 {1+objidx}", button_height=20, text_scale=0.5, on_color=(145, 120, 65))
     buffer_txt = TextBlock(0.0, block_height=25, text_scale=0.35, max_characters=3)
     buffer_elems.extend([HStack(buffer_btn, buffer_txt)])
     buffer_btns_list.append(buffer_btn)
     buffer_text_list.append(buffer_txt)
 force_same_min_width(*buffer_btns_list)
 buffer_btn_constraint = RadioConstraint(*buffer_btns_list)
-buffer_title_text = TextBlock("Buffered Mask Data (MB)", block_height=20, text_scale=0.35)
-buffer_save_btn = ImmediateButton("Save Buffer", button_height=30, text_scale=0.5, color=(110, 145, 65))
-buffer_clear_btn = ImmediateButton("Clear Buffer", button_height=30, text_scale=0.5, color=(80, 60, 190))
+buffer_title_text = TextBlock("缓存掩码数据(MB)", block_height=20, text_scale=0.35)
+buffer_save_btn = ImmediateButton("保存缓存", button_height=30, text_scale=0.5, color=(110, 145, 65))
+buffer_clear_btn = ImmediateButton("清空缓存", button_height=30, text_scale=0.5, color=(80, 60, 190))
 save_sidebar = VStack(enable_record_btn, buffer_title_text, *buffer_elems, buffer_save_btn, buffer_clear_btn)
 
 # Set up info bars
 device_dtype_str = f"{model_device}/{model_dtype}"
 header_msgbar = StaticMessageBar(model_name, f"{token_hw_str} tokens", device_dtype_str, space_equally=True)
 footer_msgbar = StaticMessageBar(
-    "[tab] Store Prompt",
-    "[v/b] Buffers" if enable_saving else "[i] Invert",
-    "[space] Play/Pause",
-    "[p] Preview",
+    "[tab] 存储提示",
+    "[v/b] 缓存" if enable_saving else "[i] 反转",
+    "[space] 播放/暂停",
+    "[p] 预览",
     text_scale=0.35,
     space_equally=True,
     bar_height=30,
@@ -391,7 +391,7 @@ min_display_size_px = disp_layout._rdr.limits.min_h if render_side == "h" else d
 # %% Video loop
 
 # Setup display window
-window = DisplayWindow("Display - q to quit", display_fps=60)
+window = DisplayWindow("显示 - 按 q 退出", display_fps=60)
 window.attach_mouse_callbacks(disp_layout)
 
 # Change tools/masks on arrow keys

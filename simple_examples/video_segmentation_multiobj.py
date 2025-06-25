@@ -162,7 +162,7 @@ try:
         sidebyside_frame = cv2.resize(sidebyside_frame, dsize=None, fx=0.5, fy=0.5)
 
         # Show result
-        cv2.imshow("Video Segmentation Result - q to quit", sidebyside_frame)
+        cv2.imshow("视频分割结果 - 按 q 退出", sidebyside_frame)
         keypress = cv2.waitKey(1) & 0xFF
         if keypress in close_keycodes:
             break

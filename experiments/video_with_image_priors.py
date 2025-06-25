@@ -240,9 +240,9 @@ device_dtype_str = f"{model_device}/{model_dtype}"
 header_msgbar = StaticMessageBar(model_name, f"{token_hw_str} tokens", device_dtype_str, space_equally=True)
 
 # Controls for adding/finishing
-num_prompts_textblock = TitledTextBlock("Stored Memories").set_text(0)
-record_prompt_btn = ImmediateButton("Record Prompt", color=(135, 115, 35))
-track_video_btn = ImmediateButton("Track Video", color=(80, 140, 20))
+num_prompts_textblock = TitledTextBlock("已存储记忆").set_text(0)
+record_prompt_btn = ImmediateButton("记录提示", color=(135, 115, 35))
+track_video_btn = ImmediateButton("跟踪视频", color=(80, 140, 20))
 
 # Set up full display layout
 imgseg_layout = VStack(
@@ -263,7 +263,7 @@ min_display_size_px = imgseg_layout._rdr.limits.min_h if render_side == "h" else
 
 # Set up display
 cv2.destroyAllWindows()
-window = DisplayWindow("Image Segmentation - q to quit", display_fps=60).attach_mouse_callbacks(imgseg_layout)
+window = DisplayWindow("图像分割 - 按 q 退出", display_fps=60).attach_mouse_callbacks(imgseg_layout)
 window.move(200, 50)
 
 # Change tools/masks on arrow keys
@@ -282,11 +282,11 @@ base_img_maker = ReusableBaseImage(full_image_bgr)
 # Some feedback
 print(
     "",
-    "Use prompts to segment the image!",
-    "- Shift-click to add multiple points",
-    "- Right-click to remove points",
-    "- Press -/+ keys to change display sizing",
-    "- Press q or esc to close the window",
+    "使用提示分割图像!",
+    "- 按住 Shift 点击可添加多个点",
+    "- 右键点击以移除点",
+    "- 按 -/+ 键调整显示大小",
+    "- 按 q 或 esc 关闭窗口",
     "",
     sep="\n",
     flush=True,
@@ -439,7 +439,7 @@ vidseg_layout = VStack(
 
 # Set up display
 cv2.destroyAllWindows()
-window = DisplayWindow("Video Segmentation - q to quit", display_fps=1000 // vreader.get_frame_delay_ms())
+window = DisplayWindow("视频分割 - 按 q 退出", display_fps=1000 // vreader.get_frame_delay_ms())
 window.attach_mouse_callbacks(vidseg_layout)
 window.attach_keypress_callback(" ", vreader.toggle_pause)
 window.attach_keypress_callback("p", show_preview_btn.toggle)

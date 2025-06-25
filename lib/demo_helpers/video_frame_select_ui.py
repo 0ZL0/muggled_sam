@@ -59,8 +59,8 @@ def make_video_frame_select_ui(
 
     # Create UI elements for showing/controlling selected video frame
     main_img_elem = ExpandingImage(frame)
-    frame_select_slider = HSlider("Frame index", 0, 0, int(max_frame_index), step_size=1)
-    done_btn = ImmediateButton("Done", color=(125, 185, 0))
+    frame_select_slider = HSlider("帧序号", 0, 0, int(max_frame_index), step_size=1)
+    done_btn = ImmediateButton("完成", color=(125, 185, 0))
 
     # Hacky - Force done button to be smaller than slider using hidden UI properties
     frame_select_slider._rdr.limits.update(min_w=100)
@@ -68,7 +68,7 @@ def make_video_frame_select_ui(
 
     # Message bars for feedback
     header_bar = StaticMessageBar(title_text)
-    footer_bar = StaticMessageBar("Use slider to select a frame", text_scale=0.35)
+    footer_bar = StaticMessageBar("拖动滑块选择帧", text_scale=0.35)
 
     # Bundle UI elements into single layout
     disp_layout = VStack(

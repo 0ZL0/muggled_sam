@@ -264,19 +264,19 @@ uictrl = PromptUIControl(ui_elems)
 device_dtype_str = f"{model_device}/{model_dtype}"
 header_msgbar = StaticMessageBar(model_name, f"{token_hw_str} tokens", device_dtype_str, space_equally=True)
 footer_msgbar = StaticMessageBar(
-    "[p] Preview",
-    "[i] Invert",
-    "[tab] Contouring",
-    "[m] Mask hint" if use_mask_hint else "[arrows] Tools/Masks",
+    "[p] 预览",
+    "[i] 反转",
+    "[tab] 轮廓",
+    "[m] 提示掩码" if use_mask_hint else "[箭头] 工具/掩码",
     text_scale=0.35,
 )
 
 # Set up secondary button controls
 mask_hint_btn, show_preview_btn, invert_mask_btn, ext_mask_only_btn, pick_best_btn = ToggleButton.many(
-    "Mask Hint", "Preview", "Invert", "External Only", "Pick best", default_state=False, text_scale=0.5
+    "提示掩码", "预览", "反转", "仅外部", "选择最佳", default_state=False, text_scale=0.5
 )
 mask_hint_btn.toggle(use_mask_hint)
-save_btn = ImmediateButton("Save", (60, 170, 20))
+save_btn = ImmediateButton("保存", (60, 170, 20))
 secondary_ctrls = HStack(
     mask_hint_btn if use_mask_hint else None,
     show_preview_btn,
@@ -287,11 +287,11 @@ secondary_ctrls = HStack(
 )
 
 # Set up slider controls
-thresh_slider = HSlider("Mask Threshold", 0, -8.0, 8.0, 0.1, marker_steps=10)
-bridge_slider = HSlider("Bridge Gaps", 0, -50, 50, 1, marker_steps=5)
-small_hole_slider = HSlider("Remove holes", 0, 0, 100, 1, marker_steps=20)
-small_island_slider = HSlider("Remove islands", 0, 0, 100, 1, marker_steps=20)
-padding_slider = HSlider("Pad contours", 0, -50, 50, 1, marker_steps=5)
+thresh_slider = HSlider("掩码阈值", 0, -8.0, 8.0, 0.1, marker_steps=10)
+bridge_slider = HSlider("填补间隙", 0, -50, 50, 1, marker_steps=5)
+small_hole_slider = HSlider("去除空洞", 0, 0, 100, 1, marker_steps=20)
+small_island_slider = HSlider("去除孤岛", 0, 0, 100, 1, marker_steps=20)
+padding_slider = HSlider("轮廓填充", 0, -50, 50, 1, marker_steps=5)
 
 force_same_min_width(small_hole_slider, small_island_slider)
 
@@ -324,7 +324,7 @@ if have_init_prompts:
 
 # Set up display
 cv2.destroyAllWindows()
-window = DisplayWindow("Display - q to quit", display_fps=60).attach_mouse_callbacks(disp_layout)
+window = DisplayWindow("显示 - 按 q 退出", display_fps=60).attach_mouse_callbacks(disp_layout)
 window.move(200, 50)
 
 # Change tools/masks on arrow keys
@@ -352,11 +352,11 @@ mask_postprocessor = MaskPostProcessor()
 # Some feedback
 print(
     "",
-    "Use prompts to segment the image!",
-    "- Shift-click to add multiple points",
-    "- Right-click to remove points",
-    "- Press -/+ keys to change display sizing",
-    "- Press q or esc to close the window",
+    "使用提示分割图像!",
+    "- 按住 Shift 点击可添加多个点",
+    "- 右键点击以移除点",
+    "- 按 -/+ 键调整显示大小",
+    "- 按 q 或 esc 关闭窗口",
     "",
     sep="\n",
     flush=True,
