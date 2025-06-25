@@ -14,7 +14,7 @@ from .ui.overlays import HoverOverlay, BoxSelectOverlay, PointSelectOverlay, Dra
 from .ui.images import ExpandingImage
 from .ui.base import force_same_max_height, force_same_min_height
 
-from .ui.helpers.images import CheckerPattern, blank_mask
+from .ui.helpers.images import CheckerPattern, blank_mask, draw_box_outline
 
 import cv2
 import numpy as np
@@ -302,9 +302,23 @@ class BaseUIControl:
 
     # .................................................................................................................
 
-    def update_mask_previews(self, mask_predictions, mask_threshold=0.0, invert_mask=False) -> None:
+    def update_mask_previews(
+        self,
+        mask_predictions,
+        mask_threshold=0.0,
+        invert_mask=False,
+        highlight_colors=None,
+        texts=None,
+    ) -> None:
         """Updates mask preview buttons with binary copies of predictions"""
-        return update_mask_preview_buttons(mask_predictions, self.elems.mask_btns, mask_threshold, invert_mask)
+        return update_mask_preview_buttons(
+            mask_predictions,
+            self.elems.mask_btns,
+            mask_threshold,
+            invert_mask,
+            highlight_colors,
+            texts,
+        )
 
     # .................................................................................................................
 
@@ -544,6 +558,8 @@ def update_mask_preview_buttons(
     mask_buttons: list[ToggleImage],
     mask_threshold=0.0,
     invert_mask=False,
+    highlight_colors: list | None = None,
+    texts: list | None = None,
 ) -> None:
     """
     Helper used to draw updated mask preview buttons (used for selecting which mask to use)
@@ -558,7 +574,13 @@ def update_mask_preview_buttons(
     # Update mask selection images
     mask_preds_uint8 = ((mask_predictions.squeeze(0) > mask_threshold) * 255).byte().cpu().numpy()
     for pred_idx, (mpred_uint8, mbtn) in enumerate(zip(mask_preds_uint8, mask_buttons)):
-        mbtn.set_image(mpred_uint8 if not invert_mask else np.bitwise_not(mpred_uint8))
+        disp_mask = mpred_uint8 if not invert_mask else np.bitwise_not(mpred_uint8)
+        disp_img = cv2.cvtColor(disp_mask, cv2.COLOR_GRAY2BGR)
+        if highlight_colors is not None and highlight_colors[pred_idx] is not None:
+            disp_img = draw_box_outline(disp_img, color=highlight_colors[pred_idx], thickness=2)
+        mbtn.set_image(disp_img)
+        if texts is not None:
+            mbtn.set_text(texts[pred_idx])
 
     return
 

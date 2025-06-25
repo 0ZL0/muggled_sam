@@ -36,9 +36,18 @@ from lib.demo_helpers.history_keeper import HistoryKeeper
 from lib.demo_helpers.loading import ask_for_path_if_missing, ask_for_model_path_if_missing
 from lib.demo_helpers.contours import get_contours_from_mask
 from lib.demo_helpers.video_data_storage import SAM2VideoObjectResults
+from lib.demo_helpers.bounding_boxes import get_one_mask_bounding_box, get_2box_iou
 
 # Helper used for running SAMURAI-based video masking
-def samurai_step_video_masking(samurai, sammodel, encoded_image_features_list, prompt_memory_encodings, prompt_object_pointers, previous_memory_encodings, previous_object_pointers):
+def samurai_step_video_masking(
+    samurai,
+    sammodel,
+    encoded_image_features_list,
+    prompt_memory_encodings,
+    prompt_object_pointers,
+    previous_memory_encodings,
+    previous_object_pointers,
+):
     with torch.inference_mode():
         lowres_imgenc, *hires_imgenc = encoded_image_features_list
         memfused_encimg = sammodel.memory_fusion(
@@ -57,13 +66,32 @@ def samurai_step_video_masking(samurai, sammodel, encoded_image_features_list, p
             mask_hint=None,
             blank_promptless_output=False,
         )
-        best_mask_idx, best_samurai_iou, _ = samurai.get_best_decoder_results(mask_preds, iou_preds)
+        best_mask_idx, best_samurai_iou, kal_xy = samurai.get_best_decoder_results(mask_preds, iou_preds)
         best_mask_pred = mask_preds[:, [best_mask_idx], ...]
         best_iou_pred = iou_preds[:, [best_mask_idx], ...]
         best_obj_ptr = obj_ptrs[:, [best_mask_idx], ...]
         is_ok_mem = samurai._check_memory_ok(obj_score, best_iou_pred, best_samurai_iou)
         memory_encoding = sammodel.memory_encoder(lowres_imgenc, best_mask_pred, obj_score)
-    return obj_score, best_samurai_iou, best_mask_idx, mask_preds, memory_encoding, best_obj_ptr, is_ok_mem
+        # Compute per-mask SAMURAI scores for visualization
+        num_masks = mask_preds.shape[1]
+        mask_boxes = [get_one_mask_bounding_box(mask_preds[0, midx])[1] for midx in range(num_masks)]
+        kal_box = kal_xy
+        kalman_ious = np.array([get_2box_iou(box, kal_box) for box in mask_boxes], dtype=np.float32)
+        sam2_scores = iou_preds[0].float().cpu().numpy()
+        samurai_scores = kalman_ious * samurai.alpha_kf + sam2_scores * (1.0 - samurai.alpha_kf)
+        if num_masks > 0:
+            samurai_scores[0] = -100
+    return (
+        obj_score,
+        best_samurai_iou,
+        best_mask_idx,
+        mask_preds,
+        memory_encoding,
+        best_obj_ptr,
+        is_ok_mem,
+        iou_preds,
+        samurai_scores,
+    )
 
 from lib.demo_helpers.saving import save_video_frames, get_save_name
 
@@ -279,20 +307,33 @@ class MaskResults:
     idx: int = 0
     objscore: float = 0.0
     samurai_score: float = 0.0
+    sam2_scores: list | None = None
+    samurai_scores: list | None = None
 
     @classmethod
     def create(cls, mask_predictions, mask_index=1, object_score=0.0, samurai_score=0.0):
         """Helper used to create an empty instance of mask results"""
         empty_predictions = torch.full_like(mask_predictions, -7)
-        return cls(empty_predictions, mask_index, object_score, samurai_score)
+        return cls(empty_predictions, mask_index, object_score, samurai_score, None, None)
 
     def clear(self):
         self.preds = torch.zeros_like(self.preds)
         self.objscore = 0.0
         self.samurai_score = 0.0
+        self.sam2_scores = None
+        self.samurai_scores = None
         return self
 
-    def update(self, mask_predictions, mask_index, object_score=None, samurai_score=None):
+    def update(
+        self,
+        mask_predictions,
+        mask_index,
+        object_score=None,
+        samurai_score=None,
+        *,
+        sam2_scores=None,
+        samurai_scores=None,
+    ):
         if mask_predictions is not None:
             self.preds = mask_predictions
         if mask_index is not None:
@@ -301,6 +342,10 @@ class MaskResults:
             self.objscore = object_score
         if samurai_score is not None:
             self.samurai_score = samurai_score
+        if sam2_scores is not None:
+            self.sam2_scores = sam2_scores
+        if samurai_scores is not None:
+            self.samurai_scores = samurai_scores
         return self
 
 
@@ -545,7 +590,17 @@ try:
             if have_track_prompts and not have_user_prompts and is_changed_track_idx:
                 selected_memory_dict = memory_list[buffer_select_idx].to_dict()
                 if samurai_list[buffer_select_idx] is not None:
-                    paused_obj_score, paused_samurai_score, _, paused_mask_preds, _, _, _ = samurai_step_video_masking(
+                    (
+                        paused_obj_score,
+                        paused_samurai_score,
+                        _,
+                        paused_mask_preds,
+                        _,
+                        _,
+                        _,
+                        paused_iou_preds,
+                        paused_samurai_scores,
+                    ) = samurai_step_video_masking(
                         samurai_list[buffer_select_idx], sammodel, encoded_img, **selected_memory_dict
                     )
                     paused_obj_score = float(paused_obj_score.squeeze().float().cpu().numpy())
@@ -553,7 +608,14 @@ try:
                     track_idx_keeper.record(frame_idx)
 
             # Store user-interaction results for selected object while paused
-            maskresults_list[buffer_select_idx].update(paused_mask_preds, paused_mask_idx, paused_obj_score, paused_samurai_score)
+            maskresults_list[buffer_select_idx].update(
+                paused_mask_preds,
+                paused_mask_idx,
+                paused_obj_score,
+                paused_samurai_score,
+                sam2_scores=paused_iou_preds[0].float().cpu().numpy().tolist() if paused_mask_preds is not None else None,
+                samurai_scores=paused_samurai_scores.tolist() if paused_mask_preds is not None else None,
+            )
 
         elif curr_state == STATES.TRACKING:
 
@@ -570,7 +632,17 @@ try:
                     if samurai_list[objidx] is None:
                         continue
 
-                    obj_score, samurai_score, best_mask_idx, mask_preds, mem_enc, obj_ptr, is_mem_ok = samurai_step_video_masking(
+                    (
+                        obj_score,
+                        samurai_score,
+                        best_mask_idx,
+                        mask_preds,
+                        mem_enc,
+                        obj_ptr,
+                        is_mem_ok,
+                        iou_preds,
+                        samurai_scores,
+                    ) = samurai_step_video_masking(
                         samurai_list[objidx], sammodel, encoded_img, **memory_list[objidx].to_dict()
                     )
                     obj_score = float(obj_score.squeeze().float().cpu().numpy())
@@ -583,15 +655,44 @@ try:
                         memory_list[objidx].store_result(frame_idx, mem_enc, obj_ptr)
 
                     # UGLY! Store results for each tracked object
-                    maskresults_list[objidx].update(mask_preds, tracked_mask_idx, obj_score, samurai_score)
+                    maskresults_list[objidx].update(
+                        mask_preds,
+                        tracked_mask_idx,
+                        obj_score,
+                        samurai_score,
+                        sam2_scores=iou_preds[0].float().cpu().numpy().tolist(),
+                        samurai_scores=samurai_scores.tolist(),
+                    )
 
         # Update the mask indicators
-        selected_mask_preds = maskresults_list[buffer_select_idx].preds
-        selected_mask_idx = maskresults_list[buffer_select_idx].idx
-        selected_obj_score = maskresults_list[buffer_select_idx].objscore
-        selected_samurai_score = maskresults_list[buffer_select_idx].samurai_score
+        sel_result = maskresults_list[buffer_select_idx]
+        selected_mask_preds = sel_result.preds
+        selected_mask_idx = sel_result.idx
+        selected_obj_score = sel_result.objscore
+        selected_samurai_score = sel_result.samurai_score
+        sam2_scores = np.array(sel_result.sam2_scores if sel_result.sam2_scores is not None else [0]*selected_mask_preds.shape[1])
+        samurai_scores = np.array(sel_result.samurai_scores if sel_result.samurai_scores is not None else [0]*selected_mask_preds.shape[1])
+        best_sam2_idx = int(np.argmax(sam2_scores)) if sam2_scores.size > 0 else 0
+        best_total_idx = int(np.argmax(samurai_scores)) if samurai_scores.size > 0 else 0
+
+        highlight_colors = [None] * sam2_scores.size
+        for idx in range(sam2_scores.size):
+            color = None
+            if idx == best_total_idx:
+                color = (0, 255, 0)
+            if idx == best_sam2_idx and best_sam2_idx != best_total_idx:
+                color = (0, 120, 255)
+            highlight_colors[idx] = color
+
+        texts = [f"{s2:.2f}/{sr:.2f}" for s2, sr in zip(sam2_scores, samurai_scores)]
+
         ui_elems.masks_constraint.change_to(selected_mask_idx)
-        uictrl.update_mask_previews(selected_mask_preds, invert_mask=is_inverted_mask)
+        uictrl.update_mask_previews(
+            selected_mask_preds,
+            invert_mask=is_inverted_mask,
+            highlight_colors=highlight_colors,
+            texts=texts,
+        )
 
         # Update the (selected) object score
         objscore_text.set_value(f"{round(selected_obj_score, 1)}/{round(selected_samurai_score, 1)}")
