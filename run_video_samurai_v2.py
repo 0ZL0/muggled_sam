@@ -173,13 +173,6 @@ parser.add_argument(
     help="Use a webcam as the video input, instead of a file",
 )
 parser.add_argument(
-    "-nosave",
-    "--disable_save",
-    default=False,
-    action="store_true",
-    help="If set, this simplifies the UI by hiding the element associated with saving",
-)
-parser.add_argument(
     "--crop",
     default=False,
     action="store_true",
@@ -188,7 +181,6 @@ parser.add_argument(
 
 # For convenience
 args = parser.parse_args()
-enable_saving = not args.disable_save
 arg_image_path = args.image_path
 arg_model_path = args.model_path
 display_size_px = args.display_size
@@ -196,7 +188,7 @@ device_str = args.device
 use_float32 = args.use_float32
 use_square_sizing = not args.use_aspect_ratio
 imgenc_base_size = args.base_size_px
-num_obj_buffers = args.num_buffers if enable_saving else 1
+num_obj_buffers = 1
 max_memory_history = args.max_memories
 max_pointer_history = args.max_pointers
 discard_on_bad_objscore = not args.keep_bad_objscores
@@ -315,25 +307,6 @@ class MaskResults:
         return self
 
 
-@dataclass
-class SaveBufferData:
-    """Storage for (per-object) encoded png save data"""
-
-    png_per_frame_dict: dict[int, np.ndarray]
-    bytes_per_frame_dict: dict[int, int]
-    total_bytes: int = 0
-
-    @classmethod
-    def create(cls):
-        """Helper used to create an empty instance of save buffer data"""
-        return cls({}, {}, 0)
-
-    def clear(self):
-        self.png_per_frame_dict = {}
-        self.bytes_per_frame_dict = {}
-        self.total_bytes = 0
-        return self
-
 
 # ---------------------------------------------------------------------------------------------------------------------
 # %% Set up UI
@@ -368,30 +341,13 @@ clear_history_btn = ImmediateButton("Clear History", text_scale=0.35, color=(130
 force_same_min_width(store_prompt_btn, clear_prompts_btn, enable_history_btn, clear_history_btn)
 
 
-# Create save UI
-enable_record_btn = ToggleButton("Enable Recording", default_state=False, on_color=(0, 15, 255), button_height=60)
-buffer_btns_list = []
-buffer_text_list = []
-buffer_elems = []
-for objidx in range(num_obj_buffers):
-    buffer_btn = ToggleButton(f"Buffer {1+objidx}", button_height=20, text_scale=0.5, on_color=(145, 120, 65))
-    buffer_txt = TextBlock(0.0, block_height=25, text_scale=0.35, max_characters=3)
-    buffer_elems.extend([HStack(buffer_btn, buffer_txt)])
-    buffer_btns_list.append(buffer_btn)
-    buffer_text_list.append(buffer_txt)
-force_same_min_width(*buffer_btns_list)
-buffer_btn_constraint = RadioConstraint(*buffer_btns_list)
-buffer_title_text = TextBlock("Buffered Mask Data (MB)", block_height=20, text_scale=0.35)
-buffer_save_btn = ImmediateButton("Save Buffer", button_height=30, text_scale=0.5, color=(110, 145, 65))
-buffer_clear_btn = ImmediateButton("Clear Buffer", button_height=30, text_scale=0.5, color=(80, 60, 190))
-save_sidebar = VStack(enable_record_btn, buffer_title_text, *buffer_elems, buffer_save_btn, buffer_clear_btn)
 
 # Set up info bars
 device_dtype_str = f"{model_device}/{model_dtype}"
 header_msgbar = StaticMessageBar(model_name, f"{token_hw_str} tokens", device_dtype_str, space_equally=True)
 footer_msgbar = StaticMessageBar(
     "[tab] Store Prompt",
-    "[v/b] Buffers" if enable_saving else "[i] Invert",
+    "[i] Invert",
     "[space] Play/Pause",
     "[p] Preview",
     text_scale=0.35,
@@ -402,7 +358,7 @@ footer_msgbar = StaticMessageBar(
 # Set up full display layout
 disp_layout = VStack(
     header_msgbar if show_info else None,
-    HStack(ui_elems.layout, save_sidebar) if enable_saving else ui_elems.layout,
+    ui_elems.layout,
     playback_slider if not use_webcam else None,
     HStack(vram_text, objscore_text),
     HStack(num_prompts_text, track_btn, num_history_text),
@@ -429,8 +385,6 @@ uictrl.attach_arrowkey_callbacks(window)
 window.attach_keypress_callback(" ", vreader.toggle_pause)
 window.attach_keypress_callback("p", show_preview_btn.toggle)
 window.attach_keypress_callback("i", invert_mask_btn.toggle)
-window.attach_keypress_callback("b", buffer_btn_constraint.next)
-window.attach_keypress_callback("v", buffer_btn_constraint.previous)
 window.attach_keypress_callback(KEY.TAB, store_prompt_btn.click)
 window.attach_keypress_callback("r", reversal_btn.toggle)
 
@@ -452,7 +406,6 @@ STATES = Enum(
 # Set up per-object storage for masking/saving results
 objiter = list(range(num_obj_buffers))
 maskresults_list = [MaskResults.create(init_mask_preds) for _ in objiter]
-savebuffers_list = [SaveBufferData.create() for _ in objiter]
 memory_list = [
     SAM2VideoObjectResults.create(max_memory_history, max_pointer_history, prompt_history_length=32) for _ in objiter
 ]
@@ -482,9 +435,7 @@ try:
         _, show_mask_preview = show_preview_btn.read()
         _, is_inverted_mask = invert_mask_btn.read()
 
-        is_changed_buffer, buffer_select_idx, _ = buffer_btn_constraint.read()
-        if is_changed_buffer:
-            ui_elems.clear_prompts()
+        buffer_select_idx = 0
 
         # Allow the track button to play/pause the video
         is_trackstate_changed, is_track_on = track_btn.read()
@@ -721,68 +672,6 @@ try:
             display_size_px = max(display_size_px - 50, min_display_size_px)
             render_limit_dict = {render_side: display_size_px}
 
-        # Handle recording of segmentation data
-        _, is_record_enabled = enable_record_btn.read()
-        if is_record_enabled and curr_state == STATES.TRACKING:
-
-            # Sizing to use for saved mask results
-            save_hw = frame.shape[0:2]
-
-            for objidx in objiter:
-
-                # Don't save anything for un-tracked objects
-                if not memory_list[objidx].check_has_prompts():
-                    continue
-
-                # Generate a full sized mask matching the frame
-                mask_preds, mask_idx = maskresults_list[objidx].preds, maskresults_list[objidx].idx
-                save_mask_1ch_uint8 = uictrl.create_hires_mask_uint8(mask_preds, mask_idx, save_hw)
-                if is_inverted_mask:
-                    save_mask_1ch_uint8 = cv2.bitwise_not(save_mask_1ch_uint8)
-
-                # Select whether we use the existing frame/mask or expand to the full (uncropped) sizing
-                save_frame = frame
-                if enable_crop_ui:
-                    mask_bg = 255 if is_inverted_mask else 0
-                    full_mask_1ch = np.full(full_frame.shape[0:2], mask_bg, dtype=np.uint8)
-                    full_mask_1ch[yx_crop_slice] = save_mask_1ch_uint8
-                    save_mask_1ch_uint8 = full_mask_1ch
-                    save_frame = full_frame
-
-                # Add mask to alpha channel (and clear masked RGB data, reduces file size!)
-                save_frame = cv2.bitwise_and(save_frame, cv2.cvtColor(save_mask_1ch_uint8, cv2.COLOR_GRAY2BGR))
-                save_frame = cv2.cvtColor(save_frame, cv2.COLOR_BGR2BGRA)
-                save_frame[:, :, -1] = save_mask_1ch_uint8
-
-                # Encode frame data in memory (want to save in bulk, to avoid killing filesystem)
-                ok_encode, png_encoding = cv2.imencode(".png", save_frame)
-                if ok_encode:
-                    png_bytes = len(png_encoding)
-                    existing_bytes = savebuffers_list[objidx].bytes_per_frame_dict.get(frame_idx, 0)
-                    savebuffers_list[objidx].bytes_per_frame_dict[frame_idx] = png_bytes
-                    savebuffers_list[objidx].total_bytes += png_bytes - existing_bytes
-                    savebuffers_list[objidx].png_per_frame_dict[frame_idx] = png_encoding
-
-                # Update buffer text
-                save_buffer_mb = round(savebuffers_list[objidx].total_bytes / 1_000_000, 1)
-                buffer_text_list[objidx].set_text(save_buffer_mb)
-
-        # Save data to disk and clear storage
-        if buffer_save_btn.read():
-
-            # Only save if we actually have frame data!
-            png_per_frame_dict = savebuffers_list[buffer_select_idx].png_per_frame_dict
-            num_frames = len(png_per_frame_dict.keys())
-            if num_frames > 0:
-                save_folder, save_idx = get_save_name(video_path, "video")
-                save_file_path = save_video_frames(save_folder, save_idx, buffer_select_idx, png_per_frame_dict)
-                print("", f"Saving frame data ({num_frames} frames)...", f"@ {save_file_path}", sep="\n")
-                buffer_clear_btn.click()
-
-        # Wipe out save data if needed
-        if buffer_clear_btn.read():
-            savebuffers_list[buffer_select_idx].clear()
-            buffer_text_list[buffer_select_idx].set_text(0.0)
 
 except KeyboardInterrupt:
     print("", "Closed with Ctrl+C", sep="\n")
@@ -794,14 +683,3 @@ finally:
     # Clean up resources
     cv2.destroyAllWindows()
     vreader.release()
-
-    # Save any buffered frame data
-    for objidx, savebuffer in enumerate(savebuffers_list):
-        png_per_frame_dict = savebuffer.png_per_frame_dict
-        num_frames = len(png_per_frame_dict.keys())
-        if num_frames > 0:
-            save_folder, save_idx = get_save_name(video_path, "video")
-            save_file_path = save_video_frames(save_folder, save_idx, objidx, png_per_frame_dict)
-            print("", f"Saving frame data ({num_frames} frames)...", f"@ {save_file_path}", sep="\n")
-
-    pass
