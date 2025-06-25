@@ -131,12 +131,6 @@ parser.add_argument(
     help=f"Threshold below which objects are considered to be 'lost' (default: {default_object_score_threshold})",
 )
 parser.add_argument(
-    "--hide_info",
-    default=False,
-    action="store_true",
-    help="Hide text info elements from UI",
-)
-parser.add_argument(
     "-cam",
     "--use_webcam",
     default=False,
@@ -165,7 +159,6 @@ max_pointer_history = args.max_pointers
 discard_on_bad_objscore = not args.keep_bad_objscores
 clear_history_on_new_prompts = not args.keep_history_on_new_prompts
 object_score_threshold = args.objscore_threshold
-show_info = not args.hide_info
 use_webcam = args.use_webcam
 enable_crop_ui = args.crop
 
@@ -304,37 +297,17 @@ force_same_min_width(vram_text, objscore_text)
 show_preview_btn = ToggleButton("Preview", default_state=False)
 invert_mask_btn = ToggleButton("Invert", default_state=False)
 track_btn = ToggleButton("Track", on_color=(30, 140, 30))
-reversal_btn = ToggleButton("Reverse", default_state=False, text_scale=0.35)
-store_prompt_btn = ImmediateButton("Store Prompt", text_scale=0.35, color=(145, 160, 40))
-clear_prompts_btn = ImmediateButton("Clear Prompts", text_scale=0.35, color=(80, 110, 230))
-enable_history_btn = ToggleButton("Enable History", default_state=True, text_scale=0.35, on_color=(90, 85, 115))
-clear_history_btn = ImmediateButton("Clear History", text_scale=0.35, color=(130, 60, 90))
-force_same_min_width(store_prompt_btn, clear_prompts_btn, enable_history_btn, clear_history_btn)
 
 
 
 # Set up info bars
-device_dtype_str = f"{model_device}/{model_dtype}"
-header_msgbar = StaticMessageBar(model_name, f"{token_hw_str} tokens", device_dtype_str, space_equally=True)
-footer_msgbar = StaticMessageBar(
-    "[tab] Store Prompt",
-    "[i] Invert",
-    "[space] Play/Pause",
-    "[p] Preview",
-    text_scale=0.35,
-    space_equally=True,
-    bar_height=30,
-)
 
 # Set up full display layout
 disp_layout = VStack(
-    header_msgbar if show_info else None,
     ui_elems.layout,
     playback_slider if not use_webcam else None,
     HStack(vram_text, objscore_text),
     HStack(num_prompts_text, track_btn, num_history_text),
-    HStack(store_prompt_btn, clear_prompts_btn, reversal_btn, enable_history_btn, clear_history_btn),
-    footer_msgbar if show_info else None,
 ).set_debug_name("DisplayLayout")
 
 # Render out an image with a target size, to figure out which side we should limit when rendering
@@ -356,8 +329,6 @@ uictrl.attach_arrowkey_callbacks(window)
 window.attach_keypress_callback(" ", vreader.toggle_pause)
 window.attach_keypress_callback("p", show_preview_btn.toggle)
 window.attach_keypress_callback("i", invert_mask_btn.toggle)
-window.attach_keypress_callback(KEY.TAB, store_prompt_btn.click)
-window.attach_keypress_callback("r", reversal_btn.toggle)
 
 # For clarity, some additional keypress codes
 KEY_ZOOM_IN = ord("=")
@@ -394,15 +365,10 @@ try:
             full_frame = frame.copy()
             frame = frame[yx_crop_slice]
 
-        # Change playback direction, if needed
-        is_reversed_changed, reverse_video = reversal_btn.read()
-        if is_reversed_changed:
-            vreader.toggle_reverse_state(reverse_video)
-
         # Read controls
         is_changed_pause_state = pause_keeper.is_changed(is_paused)
         is_changed_track_idx = track_idx_keeper.is_changed(frame_idx)
-        _, is_trackhistory_enabled = enable_history_btn.read()
+        is_trackhistory_enabled = True
         _, show_mask_preview = show_preview_btn.read()
         _, is_inverted_mask = invert_mask_btn.read()
 
@@ -412,18 +378,17 @@ try:
         is_trackstate_changed, is_track_on = track_btn.read()
         if is_trackstate_changed:
             vreader.pause(not is_track_on)
-            pass
+            if not is_track_on:
+                for mem in memory_list:
+                    mem.prevframe_buffer.clear()
+                    mem.prompts_buffer.clear()
+                for maskresult in maskresults_list:
+                    maskresult.clear()
+                for idx in range(len(samurai_list)):
+                    samurai_list[idx] = None
+                track_idx_keeper.clear()
 
         # Wipe out buffered data
-        if clear_prompts_btn.read():
-            memory_list[buffer_select_idx].prompts_buffer.clear()
-            maskresults_list[buffer_select_idx].clear()
-            samurai_list[buffer_select_idx] = None
-            track_idx_keeper.clear()
-        if clear_history_btn.read():
-            memory_list[buffer_select_idx].prevframe_buffer.clear()
-            track_idx_keeper.clear()
-
         # Update text feedback
         vram_usage_mb = vram_report.get_vram_usage()
         vram_text.set_value(vram_usage_mb)
@@ -558,16 +523,6 @@ try:
                     paused_mask_preds = mask_pred.repeat(1, 4, 1, 1)
                     track_idx_keeper.record(frame_idx)
 
-            # Store encoded prompts as needed
-            if store_prompt_btn.read():
-                init_mask, init_mem, init_ptr = sammodel.initialize_video_masking(
-                    encoded_img,
-                    *prompts,
-                    mask_index_select=paused_mask_idx,
-                )
-                memory_list[buffer_select_idx].store_prompt_result(frame_idx, init_mem, init_ptr)
-                samurai_list[buffer_select_idx] = SimpleSamurai(init_mask, video_framerate=vreader._fps)
-                ui_elems.clear_prompts()
 
             # Store user-interaction results for selected object while paused
             maskresults_list[buffer_select_idx].update(paused_mask_preds, paused_mask_idx, paused_obj_score)
