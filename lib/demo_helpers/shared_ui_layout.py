@@ -317,6 +317,44 @@ class BaseUIControl:
 
         return
 
+    # ...........................................................................
+
+    def draw_mask_scores(self, sam2_scores, samurai_scores) -> None:
+        """Draws SAM2 and SAMURAI scores onto mask preview buttons"""
+
+        if sam2_scores is None or samurai_scores is None:
+            for mbtn in self.elems.mask_btns:
+                mbtn.set_text(None)
+            return
+
+        for idx, mbtn in enumerate(self.elems.mask_btns):
+            sam2 = round(float(sam2_scores[idx]) * 100)
+            samurai = round(float(samurai_scores[idx]) * 100)
+            mbtn.set_text(f"{sam2}/{samurai}")
+
+        return
+
+    # ...........................................................................
+
+    def update_mask_previews_with_highlight(
+        self,
+        mask_predictions,
+        highlight_indices=None,
+        mask_threshold=0.0,
+        invert_mask=False,
+    ) -> None:
+        """Updates mask preview buttons with optional highlighted borders"""
+
+        highlight_indices = highlight_indices or {}
+        update_mask_preview_buttons_with_highlight(
+            mask_predictions,
+            self.elems.mask_btns,
+            mask_threshold,
+            invert_mask,
+            highlight_indices,
+        )
+        return
+
     # .................................................................................................................
 
     @staticmethod
@@ -544,7 +582,7 @@ def update_mask_preview_buttons(
     mask_buttons: list[ToggleImage],
     mask_threshold=0.0,
     invert_mask=False,
-) -> None:
+    ) -> None:
     """
     Helper used to draw updated mask preview buttons (used for selecting which mask to use)
     Supports inversion as well as adjusting the threshold level used for the display.
@@ -559,6 +597,31 @@ def update_mask_preview_buttons(
     mask_preds_uint8 = ((mask_predictions.squeeze(0) > mask_threshold) * 255).byte().cpu().numpy()
     for pred_idx, (mpred_uint8, mbtn) in enumerate(zip(mask_preds_uint8, mask_buttons)):
         mbtn.set_image(mpred_uint8 if not invert_mask else np.bitwise_not(mpred_uint8))
+
+    return
+
+
+# ..............................................................................
+
+
+def update_mask_preview_buttons_with_highlight(
+    mask_predictions: Tensor,
+    mask_buttons: list[ToggleImage],
+    mask_threshold=0.0,
+    invert_mask=False,
+    highlight_indices: dict | None = None,
+) -> None:
+    """Draw mask preview buttons with optional colored borders"""
+
+    highlight_indices = highlight_indices or {}
+    mask_preds_uint8 = ((mask_predictions.squeeze(0) > mask_threshold) * 255).byte().cpu().numpy()
+    for idx, (mpred_uint8, mbtn) in enumerate(zip(mask_preds_uint8, mask_buttons)):
+        disp = mpred_uint8 if not invert_mask else np.bitwise_not(mpred_uint8)
+        disp_color = cv2.cvtColor(disp, cv2.COLOR_GRAY2BGR)
+        if idx in highlight_indices:
+            color = highlight_indices[idx]
+            cv2.rectangle(disp_color, (0, 0), (disp_color.shape[1] - 1, disp_color.shape[0] - 1), color, 2)
+        mbtn.set_image(disp_color)
 
     return
 
