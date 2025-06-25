@@ -7,6 +7,7 @@
 
 import cv2
 import numpy as np
+from lib.translation import tr
 
 from lib.demo_helpers.ui.window import DisplayWindow, KEY
 from lib.demo_helpers.ui.layout import HStack, VStack, OverlayStack
@@ -55,7 +56,7 @@ def make_crop_ui(image_bgr: ndarray, fg_line_color=(0, 255, 0), initial_crop_tlb
     img_h, img_w = image_bgr.shape[0:2]
     crop_ui = VStack(
         StaticMessageBar(
-            f"Original: {img_w} x {img_h} px",
+            f"{tr('Original: ')}{img_w} x {img_h} px",
         ),
         HStack(
             OverlayStack(main_disp, zoom_olay, crop_olay),
@@ -70,9 +71,9 @@ def make_crop_ui(image_bgr: ndarray, fg_line_color=(0, 255, 0), initial_crop_tlb
         ),
         HStack(xy1_txt, crop_wh_txt, xy2_txt),
         StaticMessageBar(
-            "Click & drag to adjust crop boundaries",
-            "Arrow keys for fine adjustments",
-            "Use ] or [ keys to zoom",
+            tr("Click & drag to adjust crop boundaries"),
+            tr("Arrow keys for fine adjustments"),
+            tr("Use ] or [ keys to zoom"),
             text_scale=0.35,
             space_equally=True,
         ),
@@ -95,7 +96,7 @@ def run_crop_ui(
     initial_crop_tlbr_norm=None,
     fg_line_color=(0, 255, 0),
     bg_line_color=(0, 0, 0),
-    window_title="Crop Image - q to close",
+    window_title=tr("Crop Image - q to close"),
 ) -> tuple[tuple[slice, slice], tuple]:
     """
     Helper used to launch a (temporary) UI for cropping an image

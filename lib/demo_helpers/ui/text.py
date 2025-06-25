@@ -6,6 +6,7 @@
 # %% Imports
 
 import cv2
+from lib.translation import tr
 
 from .base import BaseCallback
 from .helpers.text import TextDrawer
@@ -23,8 +24,8 @@ class TitledTextBlock(BaseCallback):
     def __init__(self, title: str, default_value: str = "", block_height=80, bg_color=(64, 53, 52), text_scale=0.5):
 
         # Set up text drawing config
-        self._text_title = title
-        self._text_value = default_value
+        self._text_title = tr(title)
+        self._text_value = str(default_value)
         self._title_txtdraw = TextDrawer(text_scale * 1.15, font=cv2.FONT_HERSHEY_DUPLEX)
         self._value_txtdraw = TextDrawer(text_scale, thickness=1)
 
@@ -52,13 +53,14 @@ class TitledTextBlock(BaseCallback):
     # .................................................................................................................
 
     def set_text(self, text):
-        self._text_value = str(text)
+        self._text_value = str(tr(text))
         return self
 
     def set_title(self, title):
-        if title != self._text_title:
+        translated = tr(title)
+        if translated != self._text_title:
             self._base_image = blank_image(1, 1, self._bg_color)
-        self._text_title = title
+        self._text_title = translated
         return self
 
     # .................................................................................................................
@@ -87,7 +89,7 @@ class TextBlock(BaseCallback):
     def __init__(self, text: str = "", block_height=40, bg_color=(30, 25, 25), text_scale=0.35, max_characters=6):
 
         # Set up text drawing config
-        text_str = str(text)
+        text_str = str(tr(text))
         self._text_value = text_str
         self._value_txtdraw = TextDrawer(text_scale)
 
@@ -113,7 +115,7 @@ class TextBlock(BaseCallback):
     # .................................................................................................................
 
     def set_text(self, text):
-        self._text_value = str(text)
+        self._text_value = str(tr(text))
         return self
 
     # .................................................................................................................
@@ -150,7 +152,7 @@ class ValueBlock(TextBlock):
     ):
 
         # Set up text drawing config
-        self._prefix = str(prefix)
+        self._prefix = tr(str(prefix))
         self._suffix = str(suffix)
         self._text_value = ""
         self.set_value(initial_value)
@@ -176,10 +178,10 @@ class ValueBlock(TextBlock):
     def set_prefix_suffix(self, new_prefix=None, new_suffix=None):
 
         if new_prefix is not None:
-            self._prefix = str(new_prefix)
+            self._prefix = tr(str(new_prefix))
 
         if new_suffix is not None:
-            self._suffix = str(new_suffix)
+            self._suffix = tr(str(new_suffix))
 
         return self
 

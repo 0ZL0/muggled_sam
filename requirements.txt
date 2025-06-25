@@ -1,3 +1,4 @@
 opencv-python   >=4.5, <4.12
 numpy           >=1.21, <2.3
 torch           >=2.1, <2.7
+pillow          >=10, <11

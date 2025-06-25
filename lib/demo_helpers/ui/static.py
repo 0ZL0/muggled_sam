@@ -6,6 +6,7 @@
 # %% Imports
 
 import cv2
+from lib.translation import tr
 
 from .base import BaseCallback
 from .helpers.text import TextDrawer
@@ -85,7 +86,7 @@ class StaticMessageBar(BaseCallback):
     def __init__(self, *messages, bar_height=40, bar_bg_color=(64, 53, 52), text_scale=0.5, space_equally=False):
 
         # Store messages with front/back padding for nicer spacing on display (and skip 'None' entries)
-        self._msgs_list = [f" {msg}  " for msg in messages if msg is not None]
+        self._msgs_list = [f" {tr(msg)}  " for msg in messages if msg is not None]
 
         # Store visual settings
         self._base_image = blank_image(1, 1, bar_bg_color)

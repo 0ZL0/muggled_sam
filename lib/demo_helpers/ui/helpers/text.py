@@ -7,6 +7,8 @@
 
 import cv2
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+import os
 
 from typing import TypeAlias
 
@@ -17,6 +19,23 @@ from typing import TypeAlias
 XYPX: TypeAlias = tuple[int, int]
 XYNORM: TypeAlias = tuple[float, float]
 COLOR: TypeAlias = tuple[int, int, int]
+
+# Font path for rendering unicode text
+FONT_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+_font_cache: dict[int, ImageFont.FreeTypeFont] = {}
+
+
+def _get_font(scale: float) -> ImageFont.FreeTypeFont:
+    """Get a PIL font for the given scale."""
+    size = max(1, int(20 * scale))
+    font = _font_cache.get(size)
+    if font is None:
+        if os.path.exists(FONT_PATH):
+            font = ImageFont.truetype(FONT_PATH, size)
+        else:
+            font = ImageFont.load_default()
+        _font_cache[size] = font
+    return font
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -104,6 +123,16 @@ class TextDrawer:
             color = self._fg_color
         if thickness is None:
             thickness = self._fg_thick
+
+        # Use PIL for unicode text since OpenCV built-in fonts do not support it
+        if any(ord(ch) > 127 for ch in text):
+            pil_image = Image.fromarray(image)
+            draw = ImageDraw.Draw(pil_image)
+            font = _get_font(scale)
+            # PIL uses RGB color
+            draw.text(xy_px, text, font=font, fill=tuple(int(c) for c in color[::-1]))
+            image[:] = np.array(pil_image)
+            return image
 
         if self._bg_color is not None:
             bg_thick = min(thickness + 3, thickness * 3)
@@ -234,6 +263,11 @@ class TextDrawer:
             scale = self._scale
         if thickness is None:
             thickness = self._fg_thick
+
+        if any(ord(ch) > 127 for ch in text):
+            font = _get_font(scale)
+            txt_w, txt_h = font.getsize(text)
+            return txt_w, txt_h, 0
 
         (txt_w, txt_h), txt_base = cv2.getTextSize(text, self._font, scale, thickness)
         return txt_w, txt_h, txt_base
