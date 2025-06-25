@@ -6,6 +6,7 @@
 # %% Imports
 
 import cv2
+from lib.translation import tr
 
 from .base import BaseCallback, force_same_min_width
 from .images import ExpandingImage
@@ -112,7 +113,7 @@ class ToggleButton(Toggleable):
             off_color = convert_color(hsv_off_color, cv2.COLOR_HSV2BGR_FULL)
 
         # Store visual settings
-        self._label = f" {label} "
+        self._label = f" {tr(label)} "
         self._color_on = on_color
         self._color_off = off_color
         self._txt_bright = TextDrawer(scale=text_scale).style(color=text_on_color)
@@ -324,7 +325,7 @@ class ImmediateButton(BaseCallback):
         self._is_changed = False
 
         # Store visual settings
-        self._label = f" {label} "
+        self._label = f" {tr(label)} "
         self._color = color
         self._hover_color = (255, 255, 255)
         self._txtdraw = TextDrawer(scale=text_scale)

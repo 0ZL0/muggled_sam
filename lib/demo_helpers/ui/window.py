@@ -20,6 +20,8 @@ class DisplayWindow:
     WINDOW_CLOSE_KEYS_SET = {ord("q"), 27}  # q, esc
 
     def __init__(self, window_title, display_fps=60, limit_threading=True):
+        from lib.translation import tr
+        window_title = tr(window_title)
 
         # Clear any existing window with the same title
         # -> This forces the window to 'pop-up' when initialized, in case a 'dead' window was still around
